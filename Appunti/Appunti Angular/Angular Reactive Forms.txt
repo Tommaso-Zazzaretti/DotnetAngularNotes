@@ -1,0 +1,111 @@
+1) Importare il modulo ReactiveFormsModule. Editare il file app.module.ts:
+
+	import { ReactiveFormsModule } from '@angular/forms';
+	....
+	imports: [ 
+		ReactiveFormsModule
+	],	
+
+2) Andare nella componente form e definire la sua classe form-comp.component.ts:
+
+	import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+
+	import { UserCredentials } from './../../Models/UserCredentials';
+	import { RegexMatchValidator } from './../../Validators/CustomValidators';
+	.....
+	export class LoginFormComponent implements OnInit {
+
+  		public LOGIN_CREDENTIALS: UserCredentials; //Model bind variable
+  		public LOGIN_FORM: FormGroup;
+  		public SUBMITTED: boolean = false;
+  		private REG_EXP_USERNAME: RegExp = /.*[0-9].*/;
+
+  		constructor(private formBuilder: FormBuilder) {
+      			//Model init
+      			this.LOGIN_CREDENTIALS = new UserCredentials(null,null);
+      			//Form Init
+      			this.LOGIN_FORM = this.formBuilder.group(
+          			{
+              				usernameControl:        ['', [Validators.required,Validators.minLength(3),Validators.maxLength(10)] ],
+              				passwordControl:        ['', [Validators.required,Validators.minLength(3),Validators.maxLength(10)] ],
+          			},
+          			{
+              				validators: [RegexMatchValidator('usernameControl',this.REG_EXP_USERNAME)]
+          			});
+      			//Data Binding
+      			this.LOGIN_FORM.get('usernameControl')!.valueChanges.subscribe(value => this.LOGIN_CREDENTIALS.Username = value);
+      			this.LOGIN_FORM.get('passwordControl')!.valueChanges.subscribe(value => this.LOGIN_CREDENTIALS.Password = value);
+  		}
+
+  		public onReset():  void {
+      			this.SUBMITTED = false;
+      			this.LOGIN_FORM.reset();
+  		}
+
+  		public onSubmit(): void {
+      			this.SUBMITTED = true;
+      			if(this.LOGIN_FORM.invalid){ return; }
+      			//Action on correct form compilation
+			window.alert("Form Submitted");
+  		}
+
+  		ngOnInit(): void { }
+	}
+
+	File importati: 
+
+	{UserCredentials.ts}
+	
+		export class UserCredentials {
+    			public Username:string|null = null;
+    			public Password:string|null = null;
+
+    			public constructor(username:string|null, password:string|null){
+        			this.Username = username;
+        			this.Password = password;
+    			}
+		}
+
+	{CustomValidators.ts}
+
+		import { AbstractControl,ValidationErrors } from '@angular/forms';
+
+		export function RegexMatchValidator(controlName: string, regex: RegExp){
+  			return (formGroup:AbstractControl): ValidationErrors|null => {
+    				const control = formGroup.get(controlName);
+    				if (control === null) { return null; }
+    				if (control.errors && !control.errors['regexMismatch']) { return null; }
+    				//Setto un errore di mismatch solo nel form control del campo che DEVE matchare
+    				const error = (!(control.value.match(regex)) ? {regexMismatch: true} : null);
+    				control.setErrors(error);
+  			  	return error;
+  			};
+		}
+
+3) Definire il template html del form:
+
+<div class="formContainer">
+	<form [formGroup]="LOGIN_FORM" (ngSubmit)="onSubmit()">
+
+ 	<p>Name</p>
+ 	<input type="text" formControlName="usernameControl"/>
+ 	<div *ngIf="SUBMITTED && LOGIN_FORM.controls['usernameControl'].errors" class="invalidFeedback">
+   	<div *ngIf="LOGIN_FORM.controls['usernameControl'].errors['required'] ">Username is required</div>
+   	<div *ngIf="LOGIN_FORM.controls['usernameControl'].errors['minlength']">Username must be at least 3 characters</div>
+   	<div *ngIf="LOGIN_FORM.controls['usernameControl'].errors['regexMismatch']">Username must contains at least one number</div>
+   	<div *ngIf="LOGIN_FORM.controls['usernameControl'].errors['maxlength']">Username must not exceed 10 characters</div>
+ 	</div>
+
+ 	<p>Password</p>
+ 	<input type="password" formControlName="passwordControl"/>
+ 	<div *ngIf="SUBMITTED && LOGIN_FORM.controls['passwordControl'].errors" class="invalidFeedback">
+   	<div *ngIf="LOGIN_FORM.controls['passwordControl'].errors['required'] ">Password is required</div>
+   	<div *ngIf="LOGIN_FORM.controls['passwordControl'].errors['minlength']">Password must be at least 3 characters</div>
+   	<div *ngIf="LOGIN_FORM.controls['passwordControl'].errors['maxlength']">Password must not exceed 10 characters</div>
+ 	</div>
+ 	<button type="submit">Login</button>
+ 	<button type="button" (click)="onReset()">Reset</button>
+	</form>
+</div>
+
+4) Definire il css

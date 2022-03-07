@@ -1,0 +1,63 @@
+-RELAZIONI @OneToMany
+
+	+-----+	1	      N	+-----+
+	|  A  |-----------------|  B  |
+	+-----+			+-----+
+
++----------------------------------------------------------------------+--------------------------------------------------------+
+|	public class EntityA {					       |	public class EntityB {				|
+|		[Key] [Required]				       |		[Key] [Required]			|
+|		public int a_id { get; set; }			       |		public int b_id { get; set; }		|
+|								       |							|
+|		public virtual ICollection<EntityB> B_list;	       |		[ForeignKey("A_ID")] [Required]  	|
+|								       |		public int a_fk { get; set; } 		|
+|		public EntityA(){ B_list = new List<EntityB>(); }      |							|
+|	}							       |		EntityA A_elem { get; set; }		|
+|								       |							|
+|								       |		public EntityB(){ A_elem = null; }	|
+|								       |	}						|
++----------------------------------------------------------------------+--------------------------------------------------------+
+
+
+-RELAZIONI @ManyToMany
+
+	+-----+	1	      N	+------+ N            1 +-----+
+	|  A  |-----------------|  AB  |----------------|  B  |
+	+-----+			+------+		+-----+
+
++----------------------------------------------------------------------+------------------------------------------------------------------------+
+|	public class EntityA {					       |	public class EntityB {						|
+|		[Key] [Required]				       |		[Key] [Required]					|
+|		public int a_id { get; set; }			       |		public int b_id { get; set; }				|
+|								       |									|
+|		public virtual ICollection<EntityAB> AB_list;	       |		public virtual ICollection<EntityAB> AB_list;		|
+|								       |									|
+|		public EntityA(){ AB_list = new List<EntityAB>(); }    |		public EntityB(){ AB_list = new List<EntityAB>(); }	|						|
+|	}							       |	}								|	
+|								       |									|
++---------------------------------------+------------------------------+----------------------------------------+-------------------------------+
+					|	public class EntityAB {						|	
+					|		[ForeignKey("A_ID")] [Required]				|
+					|		public int a_fk { get; set; }				|
+					|		EntityA A_elem  { get; set; }				|
+					|									|
+					|		[ForeignKey("B_ID")] [Required]				|
+					|		public int b_fk { get; set; } 				|
+					|		EntityB B_elem  { get; set; }				|
+					|									|
+					|		public EntityAB(){ B_elem = null; A_elem = null; }	|
+					|	}								|
+					+-----------------------------------------------------------------------+
+
+			In EF5 è impossibile fissare chiavi composte tramite Annotations. Occorre quindi andare nel metodo OnModelCreating del 
+			DbContext è creare la chiave composita dell'entità AB in questo modo:
+				+-----------------------------------------------------------------------------------------------+	
+				|		public DbSet<EntityA>  tableA   { get; set; }					|
+				|		public DbSet<EntityB>  tableB   { get; set; }					|
+				|		public DbSet<EntityAB> tableAB  { get; set; }					|
+				|												|
+				|	protected override void OnModelCreating(ModelBuilder modelBuilder)			|
+        			|	{											|
+				|		modelBuilder.Entity<EntityAb>().HasKey(obj => new { obj.a_fk, obj.b_fk });	|
+				|	}											|
+				+-----------------------------------------------------------------------------------------------+

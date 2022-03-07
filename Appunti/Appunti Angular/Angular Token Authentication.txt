@@ -1,0 +1,180 @@
+1) Importare il modulo Http nel file 'app.module.ts'
+
+	import { HttpClientModule,HTTP_INTERCEPTORS } from '@angular/common/http';
+	......
+	imports: [
+    		HttpClientModule
+  	]
+
+2) Creare un servizio Authentication, iniettare i servizi http e routing nel costruttore
+
+	import { HttpClient, HttpHeaders, HttpErrorResponse } from '@angular/common/http';
+	import { Router } from '@angular/router';
+	....
+	constructor(private HTTP: HttpClient, private router: Router) { 
+
+    	}
+
+3) Scrivere un servizio http per il login 
+
+	export class AuthenticationService {
+    		public isLogged:boolean=false;
+    		private LOGGED_USER:UserProfile|null = null;
+
+    		constructor(private HTTP: HttpClient, private router: Router) {
+    		}
+
+    		public Login(Credentials:UserCredentials):void {
+        		const URL  = 'http://localhost:57493/api/login';
+        		const OPTS = {
+                        	headers: new HttpHeaders({'Content-Type':  'application/json'}),
+                        	observe:      'body' as const,
+                         	responseType: 'json' as const
+                     	};
+        		this.HTTP.post<Token>(URL,Credentials,OPTS).subscribe({
+              			//Ogni result è un oggetto { "token": "...." }, guardare la classe Token
+              			next: (result) => {
+                    			const tokenString:string = (result.token!=null) ? result.token : "";
+                    			if(tokenString!=""){
+                        			localStorage.setItem("TOKEN",tokenString); //Salvo il Jwt Token in memoria
+                        			this.GetLoggedUser().subscribe({
+                            				next: (result) => {
+                                				this.LOGGED_USER = result;
+                                				this.isLogged = this.CheckLogin();
+                                				window.alert(this.isLogged);
+                                				this.router.navigate(["ReservedArea"]);
+                            				},
+                            				error: (e:HttpErrorResponse) => {
+                                  				let errorString = e.status.toString()+": "+e.error
+                                  				window.alert(errorString);
+                            				}
+                        			})
+                    			}
+              			},
+              			error: (e:HttpErrorResponse) => {
+                    			let errorString = e.status.toString()+": "+e.error
+                    			window.alert(errorString);
+              			}
+        		});
+    		}
+
+    		private GetLoggedUser():Observable<UserProfile>{
+        		const URL  = 'http://localhost:57493/api/user';
+        		const OPTS = {
+                       		headers: new HttpHeaders({'Content-Type':  'application/json'}),
+                       		observe:      'body' as const,
+                       		responseType: 'json' as const
+                     	};
+        		return this.HTTP.get<UserProfile>(URL,OPTS);
+    		}
+
+    		public getToken():string|null{
+        		return localStorage.getItem("TOKEN");
+    		}
+
+    		private CheckLogin():boolean{
+        		return (localStorage.getItem("TOKEN")!=null && this.LOGGED_USER!=null)
+    		}
+
+    		public Logout():void{
+        		localStorage.removeItem("TOKEN");
+        		this.LOGGED_USER=null;
+        		this.isLogged = this.CheckLogin();
+        		this.router.navigate(["Login"]);
+    		}
+	}
+
+File importati:
+
+	[UserProfile]
+
+	export class UserProfile{
+    		name:string|null = null;
+    		surname:string|null = null;
+    		birthDate:string|null = null;
+    		username:string|null = null;
+
+    		constructor(Name:string|null,Surname:string|null,BirthDate:string|null,UserName:string|null){
+        		this.name = Name;
+        		this.surname = Surname;
+        		this.birthDate = BirthDate;
+        		this.username = UserName;
+    		}
+	}
+
+	[Token]
+
+	export class Token{
+    		public token:string|null = null;
+    		public constructor(tokenString:string|null){
+        		this.token = tokenString;
+    		}
+	}
+
+4) Definire un Interceptor, il cui scopo è quello di inserire un token-header in ogni richiesta HTTP che deve essere autenticata 
+
+
+	import { Injectable } from '@angular/core';
+	import { HttpRequest, HttpHandler, HttpEvent, HttpInterceptor } from '@angular/common/http';
+	import { Observable } from 'rxjs';
+
+	import { AuthenticationService } from './../Services/authentication.service';
+	@Injectable()
+	export class AddAuthenticationHeaderInterceptor implements HttpInterceptor {
+
+		constructor(private AuthService: AuthenticationService) {}
+
+    		intercept(request: HttpRequest<unknown>, next: HttpHandler): Observable<HttpEvent<unknown>> {
+        		const TOKEN:string|null = this.AuthService.getToken();
+        		if(TOKEN!=null){
+            			request = request.clone({
+                			setHeaders: { Authorization: "Bearer " + TOKEN }
+            			});
+        		}
+        		return next.handle(request);
+    		}
+	}
+
+5) Aggiungere l'interceptor nei providers nel file 'app.module.ts'
+
+	import { HTTP_INTERCEPTORS } from '@angular/common/http';
+	..........
+	providers: [ {
+      		provide: HTTP_INTERCEPTORS,
+      		useClass: AddAuthenticationHeaderInterceptor 
+      		multi: true
+    	}],
+
+6) Definire una guardia il cui scopo è quello di kickare gli utenti non loggati dalle pagine riservate:
+
+	import { Injectable } from '@angular/core';
+	import { ActivatedRouteSnapshot, CanActivate, RouterStateSnapshot, UrlTree,Router } from '@angular/router';
+	import { Observable } from 'rxjs';
+	import { AuthenticationService } from './../Services/authentication.service';
+
+	@Injectable({
+	  providedIn: 'root'
+	})
+	export class AuthenticationGuard implements CanActivate {
+			constructor(private AuthService: AuthenticationService, private router: Router){
+			}
+	
+	    	canActivate( route: ActivatedRouteSnapshot, state: RouterStateSnapshot): Observable<boolean | UrlTree> | Promise<boolean | UrlTree> | boolean | UrlTree {
+	        	if (!this.AuthService.isLogged) {
+	            		window.alert("Access not allowed!");
+	            		this.router.navigate(['Login'])
+	        	}
+	        	return true;
+	    	}
+	}	
+
+7) Proteggere le rotte riservate con canActivate nel file app-routing.module.ts
+
+	import { AuthenticationGuard } from './Guards/authentication.guard';
+
+	const routes: Routes = [
+  		.....
+  		{ path: 'ReservedArea', component: ReservedPageComponent, canActivate: [AuthenticationGuard] }
+	];
+
+	

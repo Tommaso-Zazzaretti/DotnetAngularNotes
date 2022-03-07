@@ -1,0 +1,25 @@
+1) Generare file 'app-routing.module.ts'
+
+2) Supponiamo di avere 3 componenti compA, compB, compC
+
+3) Assegnare rotte alle componenti, editare il file 'app-routing.module.ts'
+
+import { compA } from './Components/../........';
+import { compB } from './Components/../........';
+import { compC } from './Components/../........';
+
+//Assegno dei path ad ogni componente nel file 'app-routing.module.ts'
+const routes: Routes = [
+  	{ path: '', redirectTo: 'CompARoute', pathMatch: 'full' }, //Index è CompARoute
+  	{ path: 'CompARoute', component: compA},
+  	{ path: 'CompBRoute', component: compB},
+  	{ path: 'CompCRoute', component: compC}
+];
+
+4) Inserire la componente in funzione del routing in un template HTML:
+
+	<router-outlet></router-outlet> 
+
+5) Inserire link dove si vuole nella pagina con la proprietà 'routerLink'
+
+	<a routerLink="CompARoute">  Go to compA!  </a>

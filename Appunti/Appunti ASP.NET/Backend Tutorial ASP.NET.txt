@@ -1,0 +1,158 @@
+0) CREARE DATABASE IN POSTGRES 
+
+1) CREARE PROGETTO .NET CORE (CANCELLARE CARTELLA VIEWS E TUTTO CIO' CHE RIGUARDA IL FRONTEND, CSS/JS...)
+
+2) AGGIUNGERE CONNECTION STRING DB NEL FILE appsettings.json
+
+3) INSTALLARE PACCHETTI NUGET 	 =>	Npgsql.EntityFrameworkCore.PostgreSQL, Microsoft.EntityFrameworkCore
+
+4) AGGIUNGERE CLASSE db ctx:
+
+
+	public class PostgresDatabaseCtx : DbContext {
+        	public PostgresDatabaseCtx(DbContextOptions<PostgresDatabaseCtx> opts) : base(opts) { }
+	        protected override void OnModelCreating(ModelBuilder modelBuilder){ }
+    	}
+
+
+4) INSTALLARE PACCHETTO NUGET 	 =>	Microsoft.EntityFrameworkCore.Proxies
+
+5) EDITARE FILE startup.cs
+
+	
+	public class Startup
+    	{
+        	public IConfiguration Configuration { get; }
+        	public Startup(IConfiguration configuration) { Configuration = configuration; }
+
+     		public void ConfigureServices(IServiceCollection services)
+        	{
+        		services.AddCors(cors => cors.AddPolicy("ENABLE_ALL_DOMAINS", opt => opt.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader()));
+            		services.AddDbContext<PostgresDatabaseCtx>(opt => opt.UseLazyLoadingProxies().UseNpgsql(Configuration.GetConnectionString("connessione_POSTGRES_DB")));
+            		services.AddControllers();
+        	}
+
+        	public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
+        	{
+            		if (env.IsDevelopment()) { app.UseDeveloperExceptionPage(); }
+            		app.UseCors("ENABLE_ALL_DOMAINS");
+            		app.UseRouting();
+            		app.UseAuthorization();
+            		app.UseEndpoints(endPoints => endPoints.MapControllers());
+        	}
+    	}
+
+
+6) LOOP  
+	
+	-INSERIRE CLASSE MODEL
+
+	public class Student
+    	{
+        	[Key] [Required] [Column(Order = 1, TypeName = "integer")]
+        	[DatabaseGenerated(DatabaseGeneratedOption.Identity)]  //SERIAL FIELD!
+        	public int Id { get; set; }
+
+		[Required] [Column(Order = 2, TypeName = "varchar(60)")]
+	        public string Name { get; set; }
+
+		public Student(){}
+	}
+	
+	-SCRIVERE CLASSE SEED
+
+		public class StudentSeed
+    		{
+        		public static List<Student> seed = new List<Student>() {
+        			new Student(1,"Tommaso")
+        		};
+    		}
+
+	-AGGIORNARE IL METODO onModelCreating del db context aggiungendo i seed con HasData
+		public DbSet<Student> student {get; set; }
+
+		dentro onModelCreating()
+			modelBuilder.Entity<Student>().HasData(StudentSeed.seed.ToArray());
+
+
+7) INSTALLARE PACCHETTI NUGET : Microsoft.EntityFrameworkCore.Design, Microsoft.EntityFrameworkCore.Tool
+
+8) ESEGUIRE CODE FIRST TRAMITE MIGRATION VIA TERMINALE
+
+	aprire prompt cmd
+
+	CMD INSTALL 	=> 	dotnet tool install --global dotnet-ef
+
+	cd <folder dir name>
+	dotnet ef migrations add InitialCreate	
+	dotnet ef database update
+
+9) VERIFICARE CHE SUL DB SIANO STATE CREATE CORRETTAMENTE LE TABELLE
+
+10) DISABILITARE LANCIO DEL BROWSER NEL FILE E COMMENTARE LA PORTA SSL launchsetting.json
+
+-----------------------------------------------------------------------------------------------------------------------------------------------
+
+			WEB API
+
+1) CREARE UNA INTERFACCIA SERVIZIO CON OPERAZIONI CRUD SU UN'ENTITA' DEL MODELLO E LA RELATIVA CLASSE IMPLEMENTATIVA
+
+	public interface IStudentService
+    	{
+        	public Task<List<Student>> RetrieveAll();
+    	}
+
+	public class StudentService : IStudentService
+    	{
+        	private readonly PostgresDatabaseCtx DbContext;
+        	public StudentService(PostgresDatabaseCtx context)
+        	{
+        		this.DbContext = context;
+        	}
+
+	        public async Task<List<Student>> RetrieveAll()
+        	{
+            		return await this.DbContext.Student.ToListAsync();
+        	}
+    	}
+
+2) AGGIUNGERE IL SERVIZIO AL BUILDER DELL'APP, FILE startup.cs => metodo ConfigureServices
+
+	public void ConfigureServices(IServiceCollection services)
+        {
+            ......
+            services.AddScoped<IStudentService, StudentService>(); 
+            services.AddControllers();
+        }
+
+3) CREARE UN CONTROLLER CHE MAPPA LE ROTTE HTTP CON I METODI DEL SERVIZIO 
+
+	[Route("api/student")]
+    	[ApiController]
+    	public class StudentController : ControllerBase
+    	{
+        	private readonly IStudentService service;
+
+	        public StudentController(IStudentService studentService)
+        	{
+            		this.service = studentService;
+        	}
+
+	        [Route("all")]
+        	public async Task<List<Student>> GetAllStudents()
+        	{
+        		return await this.service.RetrieveAll();
+        	}
+    	}
+
+4) TESTARE LE API CON POSTMAN
+
+
+---------------------------------------------- AUTHENTICATION JWT TOKENS-----------------------------------------------
+
+1) INSTALLARE PACCHETTI NU GET:
+
+	Microsoft.AspNetCore.Authentication
+	Microsoft.AspNetCore.Authentication.JwtBearer
+	System.IdentityModel.Tokens.Jwt
+
