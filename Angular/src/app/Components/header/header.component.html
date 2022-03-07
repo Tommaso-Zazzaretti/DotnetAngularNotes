@@ -1,9 +1,0 @@
-<div class="navbar">
-  <div class="mainItem"><h1>Jwt Session</h1></div>
-  <div class="menuItem"></div>
-  <div class="menuItem"></div>
-  <div class="menuItem"></div>
-  <div *ngIf="!this.IsLoggedIn" class="menuItem"><a routerLink="/Register"><p>Sig in</p></a></div>
-  <div *ngIf="!this.IsLoggedIn" class="menuItem"><a routerLink="/Login"><p>Login</p></a></div>
-  <div *ngIf="this.IsLoggedIn" (click)="this.trigLogout()" class="menuItem"><a><p>Logout</p></a></div>
-</div>
