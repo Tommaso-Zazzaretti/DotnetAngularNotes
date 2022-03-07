@@ -1,0 +1,40 @@
+﻿PROBLEMA:
+
+	In un microservizio si espongono API all'esterno in grado di eseguire operazioni CRUD su una o più entità.
+
+	Tipicamente per farlo vengono definite delle classi 'Servizi' (che implementano le relative interfacce), in modo
+	tale da iniettare negli API Controllers le funzionalità di tali servizi, e così mappare gli URL con le CRUD:
+
+    ESEMPIO: 
+	                    public class MyController : ControllerBase
+                        {
+                            private readonly IMyService _service;
+
+                            public MyController(IMyService Service) {
+                                this._service = Service;
+                            }
+                            .......
+                            ....
+                            ..
+                        }
+    
+    Tuttavia, se la dimensione del microservizio aumenta, anche il numero di dipendenze da iniettare nei controllers aumenta:
+    questo può portare a un aumento della complessità del software.
+
+    Per risolvere questo problema si utilizzano 2 design patterns: 
+
+    1) CQRS (CommandQueryResponsabilitySegregation): che divide le CRUD operations in 2 insiemi:
+
+        Commands: Tutte le operazioni che alterano lo stato del sistema (Create,Update,Delete)
+        Query   : Tutte le operazioni che non alterano lo stato del sistema (Retrieve)
+
+        Questo consente di poter scalare indipendentemente le operazioni Commands, rispetto alle operazioni Query
+
+    2) Mediator: Usato per ridurre la complessità della comunicazione tra più classi o oggetti. Consiste nell'impiego di una
+                 classe Mediator che 'media' e gestisce le comunicazioni, in modo da ridurre l'accoppiamento ed aumentare la 
+                 manutenibilità del codice.
+
+                 Una classe Mediator principalmente fa 2 cose:
+
+                    Handling delle richieste
+                    Fornisce una risposta alle richieste
